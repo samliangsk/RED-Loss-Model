@@ -22,9 +22,9 @@ def redNetwork():
 
     router = net.addHost('router')
 
-    net.addLink(sender1, router, bw=12, delay='5ms')
-    net.addLink(sender2, router, bw=12, delay='5ms')
-    net.addLink(router, receiver, bw=.3, delay='5ms')
+    net.addLink(sender1, router, bw=16, delay='25ms')
+    net.addLink(sender2, router, bw=16, delay='25ms')
+    net.addLink(router, receiver, bw=8, delay='25ms')
 
     net.start()
 
@@ -42,7 +42,7 @@ def redNetwork():
     router.cmd('sysctl -w net.ipv4.ip_forward=1')
 
     # RED
-    router.cmd('tc qdisc add dev router-eth2 root handle 1: red limit 100000 min 30000 max 90000 avpkt 1000 burst 20 probability 0.02')
+    router.cmd('tc qdisc add dev router-eth2 root handle 1: red limit 4000')
 
     net.pingAll()
     CLI(net)

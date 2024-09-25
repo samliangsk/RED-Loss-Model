@@ -30,7 +30,7 @@ int main() {
     }
 
     int flag = 1;
-    if (setsockopt(sockfd, IPPROTO_TCP, TCP_NODELAY, (void *)&flag, sizeof(int)) != 0) {
+    if (setsockopt(sockfd, IPPROTO_TCP, TCP_NODELAY, (char *)&flag, sizeof(int)) != 0) {
         perror("setsockopt TCP_NODELAY failed");
         close(sockfd);
         free(buffer);
@@ -62,6 +62,7 @@ int main() {
             perror("Send failed");
             break;
         }
+        printf("p# %d\n",i);
     }
 
     close(sockfd);

@@ -9,12 +9,12 @@ def redNetwork():
     
     net = Mininet(link=TCLink, switch=OVSSwitch)
 
-# Topology
-# sender1 -----
-#               \
-#                router ----- receiver
-#               /
-# sender2 -----
+    # Topology
+    # sender1 -----
+    #               \
+    #                router ----- receiver
+    #               /
+    # sender2 -----
 
     sender1 = net.addHost('sender1')
     sender2 = net.addHost('sender2')
@@ -38,11 +38,24 @@ def redNetwork():
     sender2.cmd('ip route add default via 10.0.2.254')
     receiver.cmd('ip route add default via 10.0.3.254')
 
-
     router.cmd('sysctl -w net.ipv4.ip_forward=1')
 
     # RED
-    router.cmd('tc qdisc add dev router-eth2 root handle 1: red limit 100000')
+    router.cmd('tc qdisc add dev router-eth2 root handle 1: red limit 68 min 5 max 35 bandwidth 1mbit')
+
+    # disable tso to avoid truckation of packet
+    sender1.cmd('ethtool -K sender1-eth0 tso off')
+    router.cmd('ethtool -K router-eth0 tso off')
+    router.cmd('ethtool -K router-eth1 tso off')
+    router.cmd('ethtool -K router-eth2 tso off')
+    receiver.cmd('ethtool -K receiver-eth0 tso off')
+
+    # set MTU, as our packet is around the size of 1000
+    sender1.cmd('ifconfig sender1-eth0 mtu 1500')
+    router.cmd('ifconfig router-eth0 mtu 1500')
+    router.cmd('ifconfig router-eth1 mtu 1500')
+    router.cmd('ifconfig router-eth2 mtu 1500')
+    receiver.cmd('ifconfig receiver-eth0 mtu 1500')
 
     net.pingAll()
     CLI(net)

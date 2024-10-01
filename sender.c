@@ -1,17 +1,17 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>         // For close()
-#include <sys/socket.h>     // For socket functions
-#include <arpa/inet.h>      // For inet_pton()
-#include <netinet/tcp.h>    // For TCP_NODELAY
-#include <netinet/in.h>     // For sockaddr_in
-#include <errno.h>          // For errno
+#include <unistd.h>
+#include <sys/socket.h>
+#include <arpa/inet.h>
+#include <netinet/tcp.h>
+#include <netinet/in.h>
+#include <errno.h>
 
 #define SERVER_IP "10.0.3.1"   // Receiver's IP address
 #define SERVER_PORT 5001       // Receiver's port
-#define PACKET_SIZE 1000       // Size of each packet in bytes
-#define NUM_PACKETS 500        // Total number of packets to send
+#define PACKET_SIZE 1000
+#define NUM_PACKETS 10000
 
 int main() {
     int sockfd;
@@ -29,9 +29,19 @@ int main() {
         exit(EXIT_FAILURE);
     }
 
+    // Disable Nagle's algorithm
     int flag = 1;
     if (setsockopt(sockfd, IPPROTO_TCP, TCP_NODELAY, (char *)&flag, sizeof(int)) != 0) {
         perror("setsockopt TCP_NODELAY failed");
+        close(sockfd);
+        free(buffer);
+        exit(EXIT_FAILURE);
+    }
+
+    // Set TCP_MAXSEG to limit MSS to PACKET_SIZE
+    int mss = PACKET_SIZE;
+    if (setsockopt(sockfd, IPPROTO_TCP, TCP_MAXSEG, &mss, sizeof(mss)) != 0) {
+        perror("setsockopt TCP_MAXSEG failed");
         close(sockfd);
         free(buffer);
         exit(EXIT_FAILURE);
@@ -62,7 +72,7 @@ int main() {
             perror("Send failed");
             break;
         }
-        printf("p# %d\n",i);
+        // printf("Packet #%d sent\n", i + 1);
     }
 
     close(sockfd);

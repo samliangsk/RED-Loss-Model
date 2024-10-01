@@ -16,7 +16,6 @@ Running make would build the executable
 
 # mininet-setup.py
 
-red limit is in Byte
-
+red limit is in **packets**
 bw is in MBps
 

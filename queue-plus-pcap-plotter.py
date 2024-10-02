@@ -80,7 +80,7 @@ def plot_seq_ack_queue(sent_times, sent_seqs, ack_times, ack_acks, queue_times, 
     plt.show()
 
 def main():
-    pcap_file = 'sender8-REDlimit12500prob0_1.pcap'
+    pcap_file = 'sender13DT1000p.pcap'
     queue_log_file = 'queue_log.txt'
 
     sender_ip = '10.0.1.1'

@@ -3,7 +3,7 @@ import time
 
 # code referencing https://github.com/mininet/mininet-tests/blob/master/buffersizing/buffersizing.py
 
-def monitor_queue(iface='router-eth2', output_file='./queue_log.txt', interval=0.01):
+def monitor_queue(iface='router-eth2', output_file='./queue_log.txt', interval=0.05):
     """
     Monitor the queue length of a network interface.
 
@@ -20,7 +20,7 @@ def monitor_queue(iface='router-eth2', output_file='./queue_log.txt', interval=0
                 output = subprocess.check_output(cmd).decode('utf-8')
 
                 qlen_bytes = parse_queue_length(output)
-
+                # drop = parse_drop(output)
                 timestamp_ms = int(time.time() * 1000)
 
                 f.write(f'{timestamp_ms}\t{qlen_bytes}\n')
@@ -59,6 +59,32 @@ def parse_queue_length(tc_output):
                 pass
             break
     return qlen_bytes
+
+# def parse_drop(tc_output):
+#     """
+#     Parse the 'tc' command output to extract the queue length in bytes.
+
+#     Args:
+#         tc_output (str): Output from 'tc -s qdisc show dev <iface>'.
+
+#     Returns:
+#         int: Queue length in bytes.
+#     """
+#     drop = 0
+#     lines = tc_output.split('\n')
+#     for line in lines:
+#         line = line.strip()
+#         if 'drop' in line:
+#             tokens = line.split()
+#             try:
+#                 idx = tokens.index('drop')
+#                 drop_str = tokens[idx + 1]
+#                 drop = int(drop_str)
+#             except (ValueError, IndexError):
+#                 pass
+#             break
+#     return drop
+
 
 
 def main():

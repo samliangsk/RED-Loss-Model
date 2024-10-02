@@ -42,7 +42,9 @@ def redNetwork():
 
     # RED
     # setting buffer to BDP
-    router.cmd('tc qdisc add dev router-eth2 root handle 1: red limit 12500 probability 0.1')
+    router.cmd('tc qdisc del dev router-eth2 parent 5:1')
+    router.cmd('tc qdisc add dev router-eth2 parent 5:1 handle 10: red limit 12500 max 3125 min 1042 burst 2 probability 0.02 avpkt 1000 adaptive bandwidth 8Mbit')
+    router.cmd('tc qdisc add dev router-eth2 parent 10: handle 20: netem delay 25ms')
     # about 1.00 Mbps
 
     # disable tso to avoid truckation of packet

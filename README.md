@@ -18,7 +18,7 @@ Running make would build the executable
 
 red limit is in **bytes**
 
-bw is in MBps
+bw is in Mbps
 
 # Command run
 
@@ -37,6 +37,12 @@ Or Droptail
 
 ```
 sudo python3 Droptail-mininet-setup.py
+```
+
+To check if the qdisc rule is applied
+
+```
+router tc -s qdisc show dev router-eth2
 ```
 
 After booting mininet, in the mininet terminal run

@@ -16,6 +16,45 @@ Running make would build the executable
 
 # mininet-setup.py
 
-red limit is in **packets**
+red limit is in **bytes**
+
 bw is in MBps
 
+# Command run
+
+(you might also need to clear the remainer of the previous mininet)
+
+```
+sudo mn -c
+```
+To boot mininet in RED
+
+```
+sudo python3 RED-mininet-setup.py
+```
+
+Or Droptail
+
+```
+sudo python3 Droptail-mininet-setup.py
+```
+
+After booting mininet, in the mininet terminal run
+
+```
+xterm sender1
+```
+
+And in the extra terminal run
+
+```
+tcpdump -w sender8.pcap -tt
+```
+
+Going back to the mininet termial and run:
+
+```
+router python3 queue_monitor.py &
+receiver ./receiver &
+sender1 ./sender
+```

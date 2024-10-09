@@ -67,6 +67,18 @@ def redNetwork():
     router.cmd('sysctl -w net.ipv4.tcp_congestion_control=reno')
     receiver.cmd('sysctl -w net.ipv4.tcp_congestion_control=reno')
 
+
+    # additional setting
+    sender1.cmd('sysctl -w net.ipv4.tcp_frto=0')
+    sender2.cmd('sysctl -w net.ipv4.tcp_frto=0')
+    receiver.cmd('sysctl -w net.ipv4.tcp_frto=0')
+    router.cmd('sysctl -w net.ipv4.tcp_frto=0')
+    sender1.cmd('sysctl -w net.ipv4.tcp_sack=0')
+    sender2.cmd('sysctl -w net.ipv4.tcp_sack=0')
+    receiver.cmd('sysctl -w net.ipv4.tcp_sack=0')
+    router.cmd('sysctl -w net.ipv4.tcp_sack=0')
+
+
     net.pingAll()
     # print("Starting queue_monitor")
     # router.cmd('bpftrace ./queue_monitor.bt > ./queue_log.txt &')

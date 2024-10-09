@@ -58,6 +58,17 @@ def dropTailNetwork():
     router.cmd('ifconfig router-eth2 mtu 1500')
     receiver.cmd('ifconfig receiver-eth0 mtu 1500')
 
+
+    # additional setting
+    sender1.cmd('sysctl -w net.ipv4.tcp_frto=0')
+    sender2.cmd('sysctl -w net.ipv4.tcp_frto=0')
+    receiver.cmd('sysctl -w net.ipv4.tcp_frto=0')
+    router.cmd('sysctl -w net.ipv4.tcp_frto=0')
+    
+    sender1.cmd('sysctl -w net.ipv4.tcp_sack=0')
+    sender2.cmd('sysctl -w net.ipv4.tcp_sack=0')
+    receiver.cmd('sysctl -w net.ipv4.tcp_sack=0')
+    router.cmd('sysctl -w net.ipv4.tcp_sack=0')
     net.pingAll()
     CLI(net)
     net.stop()

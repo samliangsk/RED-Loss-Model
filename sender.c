@@ -11,7 +11,7 @@
 #define SERVER_IP "10.0.3.1"   // Receiver's IP address
 #define SERVER_PORT 5001       // Receiver's port
 #define PACKET_SIZE 1000
-#define NUM_PACKETS 1000
+#define NUM_PACKETS 10000
 
 int main() {
     int sockfd;

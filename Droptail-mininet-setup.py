@@ -69,6 +69,12 @@ def dropTailNetwork():
     sender2.cmd('sysctl -w net.ipv4.tcp_sack=0')
     receiver.cmd('sysctl -w net.ipv4.tcp_sack=0')
     router.cmd('sysctl -w net.ipv4.tcp_sack=0')
+    
+    sender1.cmd('sysctl -w net.ipv4.tcp_congestion_control=reno')
+    sender2.cmd('sysctl -w net.ipv4.tcp_congestion_control=reno')
+    receiver.cmd('sysctl -w net.ipv4.tcp_congestion_control=reno')
+    router.cmd('sysctl -w net.ipv4.tcp_congestion_control=reno')
+    
     net.pingAll()
     CLI(net)
     net.stop()

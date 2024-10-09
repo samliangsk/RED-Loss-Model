@@ -80,8 +80,8 @@ def plot_seq_ack_queue(sent_times, sent_seqs, ack_times, ack_acks, queue_times, 
     plt.show()
 
 def main():
-    pcap_file = 'sender13DT1000p.pcap'
-    queue_log_file = 'queue_log.txt'
+    pcap_file = 'DT10000p_!S_!fsretran.pcap'
+    queue_log_file = 'DT10000p_!S_!fsretran_queue_log.txt'
 
     sender_ip = '10.0.1.1'
     receiver_ip = '10.0.3.1'

@@ -102,7 +102,7 @@ def classify_packets(sent_df, acknowledged):
 
 
 def main():
-    pcap_file = 'RED10000p_!S_!fsretran.pcap'
+    pcap_file = 'DT1p.pcap'
     sender_ip = '10.0.1.1'
     receiver_ip = '10.0.3.1'
 

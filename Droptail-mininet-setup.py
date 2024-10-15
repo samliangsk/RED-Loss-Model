@@ -44,7 +44,7 @@ def dropTailNetwork():
     # droptail
     # set buffer size to BDP
     router.cmd('tc qdisc del dev router-eth2 parent 5:1')
-    router.cmd('tc qdisc add dev router-eth2 parent 5:1 handle 10: netem delay 25ms limit 13')
+    router.cmd('tc qdisc add dev router-eth2 parent 5:1 handle 10: netem delay 25ms limit 65')
 
     sender1.cmd('ethtool -K sender1-eth0 tso off')
     router.cmd('ethtool -K router-eth0 tso off')

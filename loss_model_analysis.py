@@ -22,7 +22,7 @@ def extract_packets(pcap_file, src_ip, dst_ip):
 def main():
     # Define IP addresses
     sender_ip = '10.0.1.1'   # IP of sender1
-    receiver_ip = '10.0.3.1' # IP of receiver
+    receiver_ip = '10.0.2.2' # IP of receiver
 
     # Extract packets sent from sender1 to receiver
     sender_packets = extract_packets('DT10000Sender5BDP.pcap', sender_ip, receiver_ip)

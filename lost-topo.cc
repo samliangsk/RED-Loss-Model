@@ -41,6 +41,7 @@
 #include <fstream>
 #include <iostream>
 #include <string>
+#include <ns3/packet-metadata.h>
 
 using namespace ns3;
 
@@ -111,6 +112,25 @@ BufTracerfifo(Ptr<OutputStreamWrapper> stream, uint32_t oldval, uint32_t newval)
 
 
 static void
+DropTracer(Ptr<OutputStreamWrapper> stream, Ptr<const QueueDiscItem> item)
+{   
+    Ptr<Packet> packetCopy = item->GetPacket()->Copy();
+
+    TcpHeader tcpHeader;
+    packetCopy->RemoveHeader(tcpHeader);
+    *stream->GetStream() << tcpHeader.GetSequenceNumber().GetValue() << std::endl;
+}
+
+/**
+ * Function to enable the Congestion window tracing.
+ *
+ * Note that you can not hook to the trace before the socket is created.
+ *
+ * \param dropTrFileName Name of the output file.
+ */
+
+
+static void
 TraceBuffifo(std::string bufTrFileName)
 {
     AsciiTraceHelper ascii;
@@ -128,6 +148,23 @@ TraceBuffifo(std::string bufTrFileName)
     }
 }
 
+static void
+TraceDrop(std::string dropTrFileName)
+{
+    AsciiTraceHelper ascii;
+    if (dropTrFileName.empty())
+    {
+        NS_LOG_DEBUG("No trace file for drop provided");
+        return;
+    }
+    else
+    {
+        Ptr<OutputStreamWrapper> stream = ascii.CreateFileStream(dropTrFileName);
+        Config::ConnectWithoutContext(
+            "/NodeList/0/$ns3::Node/$ns3::TrafficControlLayer/RootQueueDiscList/2/Drop",
+            MakeBoundCallback(&DropTracer, stream));
+    }
+}
 
 int
 main(int argc, char* argv[])
@@ -140,7 +177,7 @@ main(int argc, char* argv[])
     std::string queueDiscType = "CoDel"; // PfifoFast(Droptail) or CoDel or RED
     uint32_t queueDiscSize = 125;            // in packets
     uint32_t queueSize = 10;                 // in packets
-    uint32_t pktSize = 1458;                 // in bytes. 1458 to prevent fragments
+    uint32_t pktSize = 1440;                 // in bytes. 1458 to prevent fragments
     float startTime = 0.1F;
     float simDuration = 60;                  // in seconds
 
@@ -148,6 +185,7 @@ main(int argc, char* argv[])
     std::string pcapFileName = "CD-bw2Mb-b125p";
     std::string cwndTrFileName = "CD-bw2Mb-b125p-cwn.tr";
     std::string bufTrFileName = "CD-bw2Mb-b125p-buf.tr";
+    std::string dropTrFileName = "CD-bw2Mb-b125p-drp.tr";
     bool logging = false;
 
     CommandLine cmd(__FILE__);
@@ -290,6 +328,8 @@ main(int argc, char* argv[])
     Simulator::Schedule(Seconds(0.00001), &TraceCwnd, cwndTrFileName);
     
     Simulator::Schedule(Seconds(0.00001), &TraceBuffifo, bufTrFileName);
+
+    Simulator::Schedule(Seconds(0.00001), &TraceDrop, dropTrFileName);
     
 
     if (isPcapEnabled)

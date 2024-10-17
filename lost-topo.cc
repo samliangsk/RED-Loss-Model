@@ -57,7 +57,7 @@ NS_LOG_COMPONENT_DEFINE("CoDel-Droptail-RED-BasicTest");
 static void
 CwndTracer(Ptr<OutputStreamWrapper> stream, uint32_t oldval, uint32_t newval)
 {
-    *stream->GetStream() << oldval << " " << newval << std::endl;
+    *stream->GetStream() << oldval << "\t" << newval << std::endl;
 }
 
 /**
@@ -99,7 +99,7 @@ TraceCwnd(std::string cwndTrFileName)
 static void
 BufTracerfifo(Ptr<OutputStreamWrapper> stream, uint32_t oldval, uint32_t newval)
 {
-    *stream->GetStream() << newval << std::endl;
+    *stream->GetStream() << Simulator::Now().GetSeconds()<< "\t"<< newval << std::endl;
 }
 
 /**

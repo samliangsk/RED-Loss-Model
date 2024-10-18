@@ -174,18 +174,18 @@ main(int argc, char* argv[])
     std::string accessBandwidth = "6Mbps";
     std::string accessDelay = "25ms";
     
-    std::string queueDiscType = "CoDel"; // PfifoFast(Droptail) or CoDel or RED
-    uint32_t queueDiscSize = 125;            // in packets
+    std::string queueDiscType = "PfifoFast"; // PfifoFast(Droptail) or CoDel or RED
+    uint32_t queueDiscSize = 300;            // in packets
     uint32_t queueSize = 10;                 // in packets
-    uint32_t pktSize = 1440;                 // in bytes. 1458 to prevent fragments
+    uint32_t pktSize = 1440;                 // in bytes. 1440 to prevent fragments
     float startTime = 0.1F;
     float simDuration = 60;                  // in seconds
 
     bool isPcapEnabled = true;
-    std::string pcapFileName = "CD-bw2Mb-b125p";
-    std::string cwndTrFileName = "CD-bw2Mb-b125p-cwn.tr";
-    std::string bufTrFileName = "CD-bw2Mb-b125p-buf.tr";
-    std::string dropTrFileName = "CD-bw2Mb-b125p-drp.tr";
+    std::string pcapFileName = "DT-bw2Mb-b125p";
+    std::string cwndTrFileName = "DT-bw2Mb-b125p-cwn.tr";
+    std::string bufTrFileName = "DT-bw2Mb-b125p-buf.tr";
+    std::string dropTrFileName = "DT-bw2Mb-b125p-drp.tr";
     bool logging = false;
 
     CommandLine cmd(__FILE__);

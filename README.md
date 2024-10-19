@@ -8,7 +8,7 @@ Mentor: Prof. John Heidemann.
 
 ## lost-topo.cc
 
-The NS3 for the simulation to run. To run it, first install NS3 via the [official instruction]{https://www.nsnam.org/}.
+The NS3 for the simulation to run. To run it, first install NS3 via the [official instruction](https://www.nsnam.org/).
 
 Copy the file to scratch in the folder and call `./ns3 run scratch/loss-topo.cc`
 

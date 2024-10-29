@@ -118,7 +118,7 @@ DropTracer(Ptr<OutputStreamWrapper> stream, Ptr<const QueueDiscItem> item)
 
     TcpHeader tcpHeader;
     packetCopy->RemoveHeader(tcpHeader);
-    *stream->GetStream() << tcpHeader.GetSequenceNumber().GetValue() << std::endl;
+    *stream->GetStream() <<Simulator::Now().GetSeconds()<< "\t" << tcpHeader.GetSequenceNumber().GetValue() << std::endl;
 }
 
 /**
@@ -169,26 +169,32 @@ TraceDrop(std::string dropTrFileName)
 int
 main(int argc, char* argv[])
 {
-    std::string bottleneckBandwidth = "2Mbps";
+    // Config::SetDefault ("ns3::TcpSocket::RcvBufSize", UintegerValue (65536));
+    // Config::SetDefault ("ns3::TcpSocket::rx_buffer", UintegerValue (1000000000));
+    Config::SetDefault ("ns3::TcpL4Protocol::SocketType", TypeIdValue (TcpCubic::GetTypeId ()));
+    std::string bottleneckBandwidth = "1Mbps";
     std::string bottleneckDelay = "25ms";
-    std::string accessBandwidth = "6Mbps";
+    std::string accessBandwidth = "3Mbps";
     std::string accessDelay = "25ms";
+    std::string tcpTypeId = "ns3::TcpLinuxReno";
     
-    std::string queueDiscType = "PfifoFast"; // PfifoFast(Droptail) or CoDel or RED
-    uint32_t queueDiscSize = 300;            // in packets
+    std::string queueDiscType = "CoDel";       // PfifoFast(Droptail) or CoDel or RED
+    uint32_t queueDiscSize = 1000;              // in packets
     uint32_t queueSize = 10;                 // in packets
     uint32_t pktSize = 1440;                 // in bytes. 1440 to prevent fragments
     float startTime = 0.1F;
     float simDuration = 60;                  // in seconds
 
+
     bool isPcapEnabled = true;
-    std::string pcapFileName = "DT-bw2Mb-b125p";
-    std::string cwndTrFileName = "DT-bw2Mb-b125p-cwn.tr";
-    std::string bufTrFileName = "DT-bw2Mb-b125p-buf.tr";
-    std::string dropTrFileName = "DT-bw2Mb-b125p-drp.tr";
+    std::string pcapFileName = "CD-bw1Mb-b1000p";
+    std::string cwndTrFileName = "CD-bw1Mb-b1000p-cwn.tr";
+    std::string bufTrFileName = "CD-bw1Mb-b1000p-buf.tr";
+    std::string dropTrFileName = "CD-bw1Mb-b1000p-drp.tr";
     bool logging = false;
 
     CommandLine cmd(__FILE__);
+    cmd.AddValue("tcpTypeId","TCP variant to use (e.g., ns3::TcpNewReno, ns3::TcpLinuxReno, etc.)",tcpTypeId);
     cmd.AddValue("bottleneckBandwidth", "Bottleneck bandwidth", bottleneckBandwidth);
     cmd.AddValue("bottleneckDelay", "Bottleneck delay", bottleneckDelay);
     cmd.AddValue("accessBandwidth", "Access link bandwidth", accessBandwidth);
@@ -225,6 +231,8 @@ main(int argc, char* argv[])
     Config::SetDefault("ns3::DropTailQueue<Packet>::MaxSize",
                        QueueSizeValue(QueueSize(QueueSizeUnit::PACKETS, queueSize)));
 
+    Config::SetDefault("ns3::TcpL4Protocol::SocketType",
+                       TypeIdValue(TypeId::LookupByName(tcpTypeId)));
     // Create gateway, source, and sink
     NodeContainer gateway;
     gateway.Create(1);
@@ -321,7 +329,7 @@ main(int argc, char* argv[])
     sourceApp.Stop(Seconds(stopTime - 3));
 
     sinkHelper.SetAttribute("Protocol", TypeIdValue(TcpSocketFactory::GetTypeId()));
-    ApplicationContainer sinkApp = sinkHelper.Install(sink);
+    ApplicationContainer sinkApp = sinkHelper.Install(sink.Get(0));
     sinkApp.Start(Seconds(0));
     sinkApp.Stop(Seconds(stopTime));
 

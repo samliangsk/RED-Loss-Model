@@ -25,10 +25,10 @@ def main():
     receiver_ip = '10.0.2.2' # IP of receiver
 
     # Extract packets sent from sender to receiver
-    sender_packets = extract_packets('CD-bw1Mb-b45p.pcap', sender_ip, receiver_ip)
+    sender_packets = extract_packets('CD-bw1Mb-b1000p.pcap', sender_ip, receiver_ip)
 
     # Read packet_drop file
-    drop_df = pd.read_csv('CD-bw1Mb-b45p-drp.tr', header=None, names=['seq'])
+    drop_df = pd.read_csv('CD-bw1Mb-b1000p-drp.tr', sep='\t', header=None, names=['time','seq'])
     # Get drop counts for each sequence number
     drop_counts = drop_df['seq'].value_counts().to_dict()
 

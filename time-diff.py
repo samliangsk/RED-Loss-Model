@@ -49,7 +49,7 @@ def main():
     """
     Main function to execute the delta_time addition.
     """
-    file_path = 'CD-bw1Mb-b1000p-drp.tr'
+    file_path = 'CD-bw1Mb-dlay20-b45p-drp.tr'
     
     add_delta_time(file_path)
 

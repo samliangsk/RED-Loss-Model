@@ -14,8 +14,9 @@
  * topology:
  *
  * source -------------------------- router ------------------------ sink
- *          100 Mb/s, 0.1 ms       pfifofast       5 Mb/s, 5ms
+ *          3 Mb/s, 25 ms         pfifofast        1 Mb/s, 25ms
  *                                 or codel        bottleneck
+ *                                  or RED
  *
  * The source generates traffic across the network using BulkSendApplication.
  * The default TCP version in ns-3, TcpNewReno, is used as the transport-layer protocol.
@@ -178,19 +179,23 @@ main(int argc, char* argv[])
     std::string accessDelay = "25ms";
     std::string tcpTypeId = "ns3::TcpLinuxReno";
     
-    std::string queueDiscType = "CoDel";       // PfifoFast(Droptail) or CoDel or RED
-    uint32_t queueDiscSize = 1000;              // in packets
-    uint32_t queueSize = 10;                 // in packets
-    uint32_t pktSize = 1440;                 // in bytes. 1440 to prevent fragments
+    std::string queueDiscType = "RED";        // PfifoFast(Droptail) or CoDel or RED
+    uint32_t queueDiscSize = 45;             // in packets
+    uint32_t queueSize = 10;                   // in packets
+    uint32_t pktSize = 1440;                   // in bytes. 1440 to prevent fragments
     float startTime = 0.1F;
-    float simDuration = 60;                  // in seconds
+    float simDuration = 60;                    // in seconds
+
+    double minTh = 5;                          // RED min
+    double maxTh = 15;                         // RED max
+
 
 
     bool isPcapEnabled = true;
-    std::string pcapFileName = "CD-bw1Mb-b1000p";
-    std::string cwndTrFileName = "CD-bw1Mb-b1000p-cwn.tr";
-    std::string bufTrFileName = "CD-bw1Mb-b1000p-buf.tr";
-    std::string dropTrFileName = "CD-bw1Mb-b1000p-drp.tr";
+    std::string pcapFileName = "RED-bw1Mb-dlay100-b45p";
+    std::string cwndTrFileName = "RED-bw1Mb-dlay100-b45p-cwn.tr";
+    std::string bufTrFileName = "RED-bw1Mb-dlay100-b45p-buf.tr";
+    std::string dropTrFileName = "RED-bw1Mb-dlay100-b45p-drp.tr";
     bool logging = false;
 
     CommandLine cmd(__FILE__);
@@ -209,6 +214,12 @@ main(int argc, char* argv[])
     cmd.AddValue("pcapFileName", "Name of pcap file", pcapFileName);
     cmd.AddValue("cwndTrFileName", "Name of cwnd trace file", cwndTrFileName);
     cmd.AddValue("logging", "Flag to enable/disable logging", logging);
+
+    cmd.AddValue("redMinTh", "RED queue minimum threshold", minTh);
+    cmd.AddValue("redMaxTh", "RED queue maximum threshold", maxTh);
+    cmd.AddValue("appPktSize", "Set OnOff App Packet Size", pktSize);
+
+
     cmd.Parse(argc, argv);
 
     float stopTime = startTime + simDuration;
@@ -268,6 +279,18 @@ main(int argc, char* argv[])
     Config::SetDefault("ns3::CoDelQueueDisc::MaxSize",
                        StringValue(std::to_string(queueDiscSize) + "p"));
 
+    TrafficControlHelper tchRED;
+    tchRED.SetRootQueueDisc("ns3::RedQueueDisc");
+    Config::SetDefault(
+            "ns3::RedQueueDisc::MaxSize",
+            QueueSizeValue(QueueSize(QueueSizeUnit::PACKETS, queueDiscSize)));
+
+    Config::SetDefault("ns3::RedQueueDisc::MinTh", DoubleValue(minTh));
+    Config::SetDefault("ns3::RedQueueDisc::MaxTh", DoubleValue(maxTh));
+    Config::SetDefault("ns3::RedQueueDisc::LinkBandwidth", StringValue(bottleneckBandwidth));
+    Config::SetDefault("ns3::RedQueueDisc::LinkDelay", StringValue(bottleneckDelay));
+    Config::SetDefault("ns3::RedQueueDisc::MeanPktSize", UintegerValue(pktSize));
+
     Ipv4AddressHelper address;
     address.SetBase("10.0.0.0", "255.255.255.0");
 
@@ -293,6 +316,10 @@ main(int argc, char* argv[])
     else if (queueDiscType == "CoDel")
     {
         tchCoDel.Install(devicesBottleneckLink);
+    }
+    else if (queueDiscType == "RED")
+    {
+        tchRED.Install(devicesBottleneckLink);
     }
     else
     {

@@ -58,7 +58,7 @@ NS_LOG_COMPONENT_DEFINE("CoDel-Droptail-RED-BasicTest");
 static void
 CwndTracer(Ptr<OutputStreamWrapper> stream, uint32_t oldval, uint32_t newval)
 {
-    *stream->GetStream() << oldval << "\t" << newval << std::endl;
+    *stream->GetStream() << Simulator::Now().GetSeconds()<< "\t" << newval << std::endl;
 }
 
 /**
@@ -170,17 +170,15 @@ TraceDrop(std::string dropTrFileName)
 int
 main(int argc, char* argv[])
 {
-    // Config::SetDefault ("ns3::TcpSocket::RcvBufSize", UintegerValue (65536));
-    // Config::SetDefault ("ns3::TcpSocket::rx_buffer", UintegerValue (1000000000));
     Config::SetDefault ("ns3::TcpL4Protocol::SocketType", TypeIdValue (TcpCubic::GetTypeId ()));
-    std::string bottleneckBandwidth = "1Mbps";
+    std::string bottleneckBandwidth = "5Mbps";
     std::string bottleneckDelay = "25ms";
-    std::string accessBandwidth = "3Mbps";
+    std::string accessBandwidth = "15Mbps";
     std::string accessDelay = "25ms";
     std::string tcpTypeId = "ns3::TcpLinuxReno";
     
-    std::string queueDiscType = "RED";        // PfifoFast(Droptail) or CoDel or RED
-    uint32_t queueDiscSize = 45;             // in packets
+    std::string queueDiscType = "CoDel";       // PfifoFast(Droptail) or CoDel or RED
+    uint32_t queueDiscSize = 450;               // in packets
     uint32_t queueSize = 10;                   // in packets
     uint32_t pktSize = 1440;                   // in bytes. 1440 to prevent fragments
     float startTime = 0.1F;
@@ -192,10 +190,10 @@ main(int argc, char* argv[])
 
 
     bool isPcapEnabled = true;
-    std::string pcapFileName = "RED-bw1Mb-dlay100-b45p";
-    std::string cwndTrFileName = "RED-bw1Mb-dlay100-b45p-cwn.tr";
-    std::string bufTrFileName = "RED-bw1Mb-dlay100-b45p-buf.tr";
-    std::string dropTrFileName = "RED-bw1Mb-dlay100-b45p-drp.tr";
+    std::string pcapFileName = "CD-bw5Mb-dlay100-b450p";
+    std::string cwndTrFileName = "CD-bw5Mb-dlay100-b450p-cwn.tr";
+    std::string bufTrFileName = "CD-bw5Mb-dlay100-b450p-buf.tr";
+    std::string dropTrFileName = "CD-bw5Mb-dlay100-b450p-drp.tr";
     bool logging = false;
 
     CommandLine cmd(__FILE__);

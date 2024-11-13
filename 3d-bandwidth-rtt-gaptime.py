@@ -1,21 +1,21 @@
 import pandas as pd
 import numpy as np
 import glob
-import os
 import re
 import matplotlib.pyplot as plt
+import seaborn as sns
 from collections import Counter
 
 def process_files():
     # Get list of all drp.tr files
-    file_list = glob.glob('CD-bw*delay*p*-drp.tr')
+    file_list = glob.glob('CD-bw*Mb-dlay*-drp.tr')
 
     data = []
 
     for file_path in file_list:
         # Extract bandwidth and delay from filename
         bw_match = re.search(r'bw([\dp]+)Mb', file_path)
-        delay_match = re.search(r'delay([\dp]+)ms', file_path)
+        delay_match = re.search(r'dlay([\d]+)', file_path)
         if bw_match and delay_match:
             bw_str = bw_match.group(1).replace('p', '.')
             delay_str = delay_match.group(1).replace('p', '.')
@@ -50,9 +50,6 @@ def process_files():
         if df.empty:
             continue
 
-        # The delta_time column is already in df
-        # No need to recompute it here
-
         # Group drops into batches where drops within 1 second are in the same batch
         batches = []
         current_batch = {'drops': [], 'times': []}
@@ -86,9 +83,8 @@ def process_files():
         if not pruned_batches:
             continue
 
-        # For each pruned batch, collect time differences
+        # For each pruned batch, collect the first delta time (time since last batch)
         time_diffs_1 = []  # Time since last batch (for first drop in batch)
-        time_diffs_within_batch = []  # Time differences within batch
 
         last_drop_time = None
         for batch in pruned_batches:
@@ -105,83 +101,38 @@ def process_files():
                 pass
             last_drop_time = times[-1]  # Update last_drop_time
 
-            # Time differences within batch
-            within_batch_diffs = []
-            for i in range(1, len(times)):
-                within_batch_diffs.append(times[i] - times[i - 1])
-            time_diffs_within_batch.append(within_batch_diffs)
+        # Compute average time since last batch
+        if time_diffs_1:
+            avg_time_since_last_batch = np.mean(time_diffs_1)
+        else:
+            avg_time_since_last_batch = np.nan
 
-        # Compute average time differences within batches
-        # Transpose the list of lists to get lists of time differences at each position
-        time_diffs_within_batch_transposed = list(zip(*time_diffs_within_batch))
-        avg_within_batch_diffs = [np.mean(diffs) for diffs in time_diffs_within_batch_transposed]
+        # Store the collected time differences in the data list
+        data.append({
+            'bandwidth': bandwidth,
+            'delay': delay,
+            'delta_time': avg_time_since_last_batch
+        })
 
-        # Store the collected time differences in the data dictionary
-        data[bandwidth] = {
-            'time_diffs_1': time_diffs_1,
-            'avg_within_batch_diffs': avg_within_batch_diffs,
-            'expected_batch_size': expected_batch_size
-        }
+    return pd.DataFrame(data)
 
-    return data
+def plot_data(df):
+    # Create a pivot table with bandwidth as rows, delay as columns, and delta_time as values
+    pivot_table = df.pivot_table(values='delta_time', index='bandwidth', columns='delay', aggfunc='mean')
 
-def plot_data(data):
-    # Prepare data for plotting
-    bandwidths = sorted(data.keys())
-    avg_time_diffs_1 = []
-    avg_within_batch_diffs = []
-    batch_sizes = []
-
-    for bw in bandwidths:
-        time_diffs_1 = data[bw]['time_diffs_1']
-        within_batch_diffs = data[bw]['avg_within_batch_diffs']
-        expected_batch_size = data[bw]['expected_batch_size']
-
-        # Compute average, if the list is empty, set average to NaN
-        avg_1 = np.mean(time_diffs_1) if time_diffs_1 else np.nan
-        avg_time_diffs_1.append(avg_1)
-        batch_sizes.append(expected_batch_size)
-
-        # For within-batch diffs, fill with NaNs if not enough data
-        while len(within_batch_diffs) < expected_batch_size - 1:
-            within_batch_diffs.append(np.nan)
-        avg_within_batch_diffs.append(within_batch_diffs[:expected_batch_size - 1])
-
-    # Number of bandwidths
-    N = len(bandwidths)
-    ind = np.arange(N)  # the x locations for the groups
-    width = 0.2  # the width of the bars
-
-    fig, ax = plt.subplots(figsize=(14, 7))
-
-    # Extract within-batch diffs
-    avg_time_diffs_list = [list(diffs) for diffs in avg_within_batch_diffs]
-    max_diffs = max(len(diffs) for diffs in avg_time_diffs_list)
-
-    # Stack the bars for each time difference
-    bar_positions = [ind + i * width - width for i in range(max_diffs + 1)]
-    labels = ['Time since last batch'] + [f'Within-batch time diff {i+1}' for i in range(max_diffs)]
-
-    rects = []
-    rects.append(ax.bar(bar_positions[0], avg_time_diffs_1, width, label=labels[0]))
-    for i in range(max_diffs):
-        avg_diffs_i = [diffs[i] if i < len(diffs) else np.nan for diffs in avg_time_diffs_list]
-        rects.append(ax.bar(bar_positions[i + 1], avg_diffs_i, width, label=labels[i + 1]))
-
-    # Add some text for labels, title and custom x-axis tick labels, etc.
-    ax.set_ylabel('Time differences (s)')
-    ax.set_xlabel('Bandwidth (Mbps)')
-    ax.set_title('Time Differences between Drops for Different Bandwidths')
-    ax.set_xticks(ind)
-    ax.set_xticklabels([str(bw) for bw in bandwidths], rotation=45)
-    ax.legend()
-
-    plt.tight_layout()
+    plt.figure(figsize=(12, 8))
+    sns.heatmap(pivot_table, annot=False, fmt=".2f", cmap='viridis')
+    plt.title('Average Delta Time Heatmap')
+    plt.ylabel('Bandwidth (Mbps)')
+    plt.xlabel('Delay (ms)')
     plt.show()
 
 def main():
-    data = process_files()
-    plot_data(data)
+    df = process_files()
+    if df.empty:
+        print("No data to plot.")
+    else:
+        plot_data(df)
 
 if __name__ == '__main__':
     main()

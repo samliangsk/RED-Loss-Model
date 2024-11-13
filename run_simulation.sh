@@ -11,7 +11,7 @@ do
 
         # Replace '.' with 'p' for filenames
         bw_str=$(echo $bw | sed 's/\./p/')
-        
+        delay_str=$(echo $j)
         # Generate the base filename with the current bandwidth
         fname_base="CD-bw${bw_str}Mb-dlay${delay_str}-b450p"
         
@@ -20,4 +20,5 @@ do
         
         # Run the ns-3 simulation with the specified parameters
         ./ns3 run "scratch/lost-topo.cc --bottleneckBandwidth=${bw}Mbps --accessDelay=${delay}ms --bottleneckDelay=${delay}ms --dropTrFileName=${fname_base}-drp.tr"
+    done
 done

@@ -103,9 +103,9 @@ def plot_seq_ack_buffer(sent_times, sent_seqs, ack_times, ack_acks, buffer_times
     plt.show()
 
 def main():
-    pcap_file = 'CD-bw1p5Mb-dlay100-b450p.pcap'
-    buffer_log_file = 'CD-bw1p5Mb-dlay100-b450p-buf.tr'
-    drop_log_file = 'CD-bw1p5Mb-dlay100-b450p-drp.tr'
+    pcap_file = 'CD-bw2Mb-dlay100-b450p.pcap'
+    buffer_log_file = 'CD-bw2Mb-dlay100-b450p-buf.tr'
+    drop_log_file = 'CD-bw2Mb-dlay100-b450p-drp.tr'
 
     sender_ip = '10.0.1.1'
     receiver_ip = '10.0.2.2'

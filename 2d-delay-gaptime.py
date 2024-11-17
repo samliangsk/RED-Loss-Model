@@ -3,26 +3,22 @@ import numpy as np
 import glob
 import re
 import matplotlib.pyplot as plt
-import seaborn as sns
 from collections import Counter
 
 def process_files():
     # Get list of all drp.tr files
-    file_list = glob.glob('FQCD-bw*Mb-dlay*-drp.tr')
+    file_list = glob.glob('CD-bw*Mb-dlay*-drp.tr')
 
-    data = []
+    data = {}
 
     for file_path in file_list:
-        # Extract bandwidth and delay from filename
-        bw_match = re.search(r'bw([\dp]+)Mb', file_path)
-        delay_match = re.search(r'dlay([\d]+)', file_path)
-        if bw_match and delay_match:
-            bw_str = bw_match.group(1).replace('p', '.')
-            delay_str = delay_match.group(1).replace('p', '.')
-            bandwidth = float(bw_str)
-            delay = float(delay_str)
+        # Extract delay from filename
+        match = re.search(r'dlay([\d]+)', file_path)
+        if match:
+            delay_str = match.group(1).replace('p', '.')
+            delay = int(delay_str)
         else:
-            continue
+            continue  # If can't find delay, skip the file
 
         # Read the file, handling whether it already has delta_time or not
         try:
@@ -43,10 +39,10 @@ def process_files():
             print(f"Error reading {file_path}: {e}")
             continue
 
-        # Ignore drops before 20 seconds
-        df = df[df['timestamp'] >= 20].reset_index(drop=True)
+        # Ignore drops before 5 seconds
+        df = df[df['timestamp'] >= 5].reset_index(drop=True)
 
-        # If no drops after 20 seconds, skip
+        # If no drops after 5 seconds, skip
         if df.empty:
             continue
 
@@ -110,33 +106,60 @@ def process_files():
         avg_drops_per_batch = np.mean(drops_per_batch) if drops_per_batch else np.nan
         # print("Average drop per batch is " , avg_drops_per_batch, "for delay ", delay)
         # Store the collected time differences and drops in the data dictionary
-        data.append({
-            'bandwidth': bandwidth,
-            'delay': delay,
+        data[delay] = {
             'avg_time_diff_between_batches': avg_time_diff,
             'avg_drops_per_batch': avg_drops_per_batch
-        })
+        }
 
-    return pd.DataFrame(data)
+    return data
 
-def plot_data(df):
-    # Create a pivot table with bandwidth as rows, delay as columns, and delta_time as values
-    pivot_table = df.pivot_table(values='avg_time_diff_between_batches', index='bandwidth', columns='delay', aggfunc='mean')
+def plot_data(data):
+    # Prepare data for plotting
+    delays = sorted(data.keys())
+    avg_time_diffs_between_batches = []
+    avg_drops_per_batch_list = []
 
-    plt.figure(figsize=(12, 8))
-    sns.heatmap(pivot_table, annot=False, fmt=".2f", cmap='viridis')
-    plt.title('Average Delta Time Heatmap')
-    plt.ylabel('Bandwidth (Mbps)')
-    plt.xlabel('Delay (ms)')
+    for dl in delays:
+        avg_time_diff = data[dl]['avg_time_diff_between_batches']
+        avg_drops_per_batch = data[dl]['avg_drops_per_batch']
+
+        avg_time_diffs_between_batches.append(avg_time_diff)
+        avg_drops_per_batch_list.append(avg_drops_per_batch)
+
+    # Plotting
+    fig, ax1 = plt.subplots(figsize=(14, 7))
+
+    ind = np.arange(len(delays))
+    width = 0.35
+
+    # Plot average time differences between batches
+    ax1.bar(ind - width/2, avg_time_diffs_between_batches, width, label='Avg Time Between Batches', color='blue')
+    ax1.set_ylabel('Average Time Between Batches (s)', color='blue')
+    ax1.tick_params(axis='y', labelcolor='blue')
+    ax1.set_xlabel('Round Trip Time (s)')
+    ax1.set_xticks(ind)
+    ax1.set_xticklabels([str(dl) for dl in delays], rotation=45)
+
+    # Create a second y-axis for average drops per batch
+    ax2 = ax1.twinx()
+    ax2.bar(ind + width/2, avg_drops_per_batch_list, width, label='Avg Drops per Batch', color='red')
+    ax2.set_ylabel('Average Drops per Batch', color='red')
+    ax2.tick_params(axis='y', labelcolor='red')
+
+    # Add title and legend
+    fig.suptitle('Average Time Between Batches and Average Drops per Batch for Different RTTs')
+
+    # Combine legends from both axes
+    handles1, labels1 = ax1.get_legend_handles_labels()
+    handles2, labels2 = ax2.get_legend_handles_labels()
+    ax1.legend(handles1 + handles2, labels1 + labels2, loc='upper right')
+
+    plt.tight_layout()
     plt.show()
 
-
 def main():
-    df = process_files()
-    if df.empty:
-        print("No data to plot.")
-    else:
-        plot_data(df)
+    data = process_files()
+    plot_data(data)
 
 if __name__ == '__main__':
     main()

@@ -119,7 +119,7 @@ DropTracer(Ptr<OutputStreamWrapper> stream, Ptr<const QueueDiscItem> item)
 
     TcpHeader tcpHeader;
     packetCopy->RemoveHeader(tcpHeader);
-    *stream->GetStream() <<Simulator::Now().GetSeconds()<< "\t" << tcpHeader.GetSequenceNumber().GetValue() << std::endl;
+    *stream->GetStream() <<Simulator::Now().GetSeconds()<< "\t" << tcpHeader.GetSequenceNumber().GetValue() <<"\t"<<tcpHeader.GetDestinationPort() << std::endl;
 }
 
 /**
@@ -144,7 +144,7 @@ TraceBuffifo(std::string bufTrFileName)
     {
         Ptr<OutputStreamWrapper> stream = ascii.CreateFileStream(bufTrFileName);
         Config::ConnectWithoutContext(
-            "/NodeList/0/$ns3::Node/$ns3::TrafficControlLayer/RootQueueDiscList/2/PacketsInQueue",
+            "/NodeList/0/$ns3::Node/$ns3::TrafficControlLayer/RootQueueDiscList/4/PacketsInQueue",
             MakeBoundCallback(&BufTracerfifo, stream));
     }
 }
@@ -162,7 +162,7 @@ TraceDrop(std::string dropTrFileName)
     {
         Ptr<OutputStreamWrapper> stream = ascii.CreateFileStream(dropTrFileName);
         Config::ConnectWithoutContext(
-            "/NodeList/0/$ns3::Node/$ns3::TrafficControlLayer/RootQueueDiscList/2/Drop",
+            "/NodeList/0/$ns3::Node/$ns3::TrafficControlLayer/RootQueueDiscList/4/Drop",
             MakeBoundCallback(&DropTracer, stream));
     }
 }
@@ -171,10 +171,10 @@ int
 main(int argc, char* argv[])
 {
     Config::SetDefault ("ns3::TcpL4Protocol::SocketType", TypeIdValue (TcpCubic::GetTypeId ()));
-    std::string bottleneckBandwidth = "2Mbps";
-    std::string bottleneckDelay = "25ms";
+    std::string bottleneckBandwidth = "9Mbps";
+    std::string bottleneckDelay = "20ms";
     std::string accessBandwidth = "15Mbps";
-    std::string accessDelay = "25ms";
+    std::string accessDelay = "20ms";
     std::string tcpTypeId = "ns3::TcpLinuxReno";
     
     std::string queueDiscType = "CoDel";       // PfifoFast(Droptail) or CoDel or RED
@@ -182,18 +182,18 @@ main(int argc, char* argv[])
     uint32_t queueSize = 10;                   // in packets
     uint32_t pktSize = 1440;                   // in bytes. 1440 to prevent fragments
     float startTime = 0.1F;
-    float simDuration = 60;                    // in seconds
+    float simDuration = 180;                    // in seconds
 
     double minTh = 5;                          // RED min
     double maxTh = 15;                         // RED max
 
 
 
-    bool isPcapEnabled = false;
-    std::string pcapFileName = "CD-bw2Mb-dlay100-b450p";
-    std::string cwndTrFileName = "CD-bw2Mb-dlay100-b450p-cwn.tr";
-    std::string bufTrFileName = "CD-bw2Mb-dlay100-b450p-buf.tr";
-    std::string dropTrFileName = "CD-bw2Mb-dlay100-b450p-drp.tr";
+    bool isPcapEnabled = true;
+    std::string pcapFileName = "CD-multiflow";
+    std::string cwndTrFileName = "CD-multiflow-cwn.tr";
+    std::string bufTrFileName = "CD-multiflow-buf.tr";
+    std::string dropTrFileName = "CD-multiflow-drp.tr";
     bool logging = false;
 
     CommandLine cmd(__FILE__);
@@ -230,7 +230,7 @@ main(int argc, char* argv[])
         // LogComponentEnable("CoDel-Droptail-RED-BasicTest", LOG_LEVEL_ALL);
         // LogComponentEnable("BulkSendApplication", LOG_LEVEL_INFO);
         // LogComponentEnable("PfifoFastQueueDisc", LOG_LEVEL_ALL);
-        LogComponentEnable("CoDelQueueDisc", LOG_LEVEL_ALL);
+        // LogComponentEnable("CoDelQueueDisc", LOG_LEVEL_ALL);
     }
 
     // Enable checksum
@@ -248,8 +248,8 @@ main(int argc, char* argv[])
     // Create gateway, source, and sink
     NodeContainer gateway;
     gateway.Create(1);
-    NodeContainer source;
-    source.Create(1);
+    NodeContainer sources;
+    sources.Create(3);
     NodeContainer sink;
     sink.Create(1);
 
@@ -279,7 +279,6 @@ main(int argc, char* argv[])
     tchCoDel.SetRootQueueDisc("ns3::FqCoDelQueueDisc");
     Config::SetDefault("ns3::FqCoDelQueueDisc::MaxSize",
                        StringValue(std::to_string(queueDiscSize) + "p"));
-
     Config::SetDefault("ns3::FqCoDelQueueDisc::UseEcn",BooleanValue(false));
 
     TrafficControlHelper tchRED;
@@ -301,13 +300,19 @@ main(int argc, char* argv[])
     // and the channels between the source/sink and the gateway
     Ipv4InterfaceContainer sinkInterface;
 
-    NetDeviceContainer devicesAccessLink;
+    // NetDeviceContainer devicesAccessLink;
     NetDeviceContainer devicesBottleneckLink;
+    Ipv4InterfaceContainer interfaces;
+    for (uint32_t i = 0; i < sources.GetN(); ++i)
+    {
+        NetDeviceContainer devicesAccessLink;
+        devicesAccessLink = accessLink.Install(sources.Get(i), gateway.Get(0));
+        tchPfifoFastAccess.Install(devicesAccessLink);
+        address.NewNetwork();
+        interfaces = address.Assign(devicesAccessLink);
+    }
 
-    devicesAccessLink = accessLink.Install(source.Get(0), gateway.Get(0));
-    tchPfifoFastAccess.Install(devicesAccessLink);
-    address.NewNetwork();
-    Ipv4InterfaceContainer interfaces = address.Assign(devicesAccessLink);
+
 
     devicesBottleneckLink = bottleneckLink.Install(gateway.Get(0), sink.Get(0));
     address.NewNetwork();
@@ -338,46 +343,100 @@ main(int argc, char* argv[])
     // Ptr<QueueDisc> qdisc = qdiscs.Get(0)
     // qdisc->TraceConnectWithoutContext("PacketsInQueue",MakeCallback(&bufTracer))
 
-
+    Config::SetDefault("ns3::TcpSocket::SegmentSize", UintegerValue(pktSize));
     NS_LOG_INFO("Initialize Global Routing.");
     Ipv4GlobalRoutingHelper::PopulateRoutingTables();
 
-    uint16_t port = 50000;
-    Address sinkLocalAddress(InetSocketAddress(Ipv4Address::GetAny(), port));
-    PacketSinkHelper sinkHelper("ns3::TcpSocketFactory", sinkLocalAddress);
+    uint16_t port1 = 50000;
+    uint16_t port2 = 50001;
+    uint16_t port3 = 50002;
+
+    Address sinkLocalAddress1(InetSocketAddress(Ipv4Address::GetAny(), port1));
+    Address sinkLocalAddress2(InetSocketAddress(Ipv4Address::GetAny(), port2));
+    Address sinkLocalAddress3(InetSocketAddress(Ipv4Address::GetAny(), port3));
+
+    PacketSinkHelper sinkHelper1("ns3::TcpSocketFactory", sinkLocalAddress1);
+    PacketSinkHelper sinkHelper2("ns3::TcpSocketFactory", sinkLocalAddress2);
+    PacketSinkHelper sinkHelper3("ns3::TcpSocketFactory", sinkLocalAddress3);
+
+    ApplicationContainer sinkApp1 = sinkHelper1.Install(sink.Get(0));
+    ApplicationContainer sinkApp2 = sinkHelper2.Install(sink.Get(0));
+    ApplicationContainer sinkApp3 = sinkHelper3.Install(sink.Get(0));
+
+    sinkApp1.Start(Seconds(0));
+    sinkApp2.Start(Seconds(0));
+    sinkApp3.Start(Seconds(0));
+
+    sinkApp1.Stop(Seconds(stopTime));
+    sinkApp2.Stop(Seconds(stopTime));
+    sinkApp3.Stop(Seconds(stopTime));
+
+
 
     // Configure application
-    AddressValue remoteAddress(InetSocketAddress(sinkInterface.GetAddress(0, 0), port));
-    Config::SetDefault("ns3::TcpSocket::SegmentSize", UintegerValue(pktSize));
-    BulkSendHelper ftp("ns3::TcpSocketFactory", Address());
-    ftp.SetAttribute("Remote", remoteAddress);
-    ftp.SetAttribute("SendSize", UintegerValue(pktSize));
-    ftp.SetAttribute("MaxBytes", UintegerValue(0));
+    AddressValue remoteAddress1(InetSocketAddress(sinkInterface.GetAddress(0, 0), port1));
+    AddressValue remoteAddress2(InetSocketAddress(sinkInterface.GetAddress(0, 0), port2));
+    AddressValue remoteAddress3(InetSocketAddress(sinkInterface.GetAddress(0, 0), port3));
 
-    ApplicationContainer sourceApp = ftp.Install(source.Get(0));
-    sourceApp.Start(Seconds(0));
-    sourceApp.Stop(Seconds(stopTime - 3));
+    BulkSendHelper ftp1("ns3::TcpSocketFactory", Address());
+    ftp1.SetAttribute("Remote", remoteAddress1);
+    ftp1.SetAttribute("SendSize", UintegerValue(pktSize));
+    ftp1.SetAttribute("MaxBytes", UintegerValue(0));
 
-    sinkHelper.SetAttribute("Protocol", TypeIdValue(TcpSocketFactory::GetTypeId()));
-    ApplicationContainer sinkApp = sinkHelper.Install(sink.Get(0));
-    sinkApp.Start(Seconds(0));
-    sinkApp.Stop(Seconds(stopTime));
+    ApplicationContainer sourceApp1 = ftp1.Install(sources.Get(0));
+    sourceApp1.Start(Seconds(0)); // Starts at 0 seconds
+    sourceApp1.Stop(Seconds(stopTime - 3));
 
-    // Simulator::Schedule(Seconds(0.00001), &TraceCwnd, cwndTrFileName);
+    BulkSendHelper ftp2("ns3::TcpSocketFactory", Address());
+    ftp2.SetAttribute("Remote", remoteAddress2);
+    ftp2.SetAttribute("SendSize", UintegerValue(pktSize));
+    ftp2.SetAttribute("MaxBytes", UintegerValue(0));
+
+    ApplicationContainer sourceApp2 = ftp2.Install(sources.Get(1));
+    sourceApp2.Start(Seconds(60)); // Starts at 60 seconds
+    sourceApp2.Stop(Seconds(stopTime - 3));
+
+    BulkSendHelper ftp3("ns3::TcpSocketFactory", Address());
+    ftp3.SetAttribute("Remote", remoteAddress3);
+    ftp3.SetAttribute("SendSize", UintegerValue(pktSize));
+    ftp3.SetAttribute("MaxBytes", UintegerValue(0));
+
+    ApplicationContainer sourceApp3 = ftp3.Install(sources.Get(2));
+    sourceApp3.Start(Seconds(120)); // Starts at 120 seconds
+    sourceApp3.Stop(Seconds(stopTime - 3));
+
+
+    // AddressValue remoteAddress(InetSocketAddress(sinkInterface.GetAddress(0, 0), port));
     
-    // Simulator::Schedule(Seconds(0.00001), &TraceBuffifo, bufTrFileName);
+    // BulkSendHelper ftp("ns3::TcpSocketFactory", Address());
+    // ftp.SetAttribute("Remote", remoteAddress);
+    // ftp.SetAttribute("SendSize", UintegerValue(pktSize));
+    // ftp.SetAttribute("MaxBytes", UintegerValue(0));
+
+    // ApplicationContainer sourceApp = ftp.Install(source.Get(0));
+    // sourceApp.Start(Seconds(0));
+    // sourceApp.Stop(Seconds(stopTime - 3));
+
+    // sinkHelper.SetAttribute("Protocol", TypeIdValue(TcpSocketFactory::GetTypeId()));
+    // ApplicationContainer sinkApp = sinkHelper.Install(sink.Get(0));
+    // sinkApp.Start(Seconds(0));
+    // sinkApp.Stop(Seconds(stopTime));
+
+    Simulator::Schedule(Seconds(0.00001), &TraceCwnd, cwndTrFileName);
+    
+    Simulator::Schedule(Seconds(0.00001), &TraceBuffifo, bufTrFileName);
 
     Simulator::Schedule(Seconds(0.00001), &TraceDrop, dropTrFileName);
     
 
     if (isPcapEnabled)
     {
-        accessLink.EnablePcap(pcapFileName, source, true);
+        accessLink.EnablePcap(pcapFileName, sources, true);
     }
 
     Simulator::Stop(Seconds(stopTime));
 
-    // // Output config store to txt format
+    // Output config store to txt format
     // Config::SetDefault ("ns3::ConfigStore::Filename", StringValue
     // ("output-attributes.txt"));
     // Config::SetDefault ("ns3::ConfigStore::FileFormat", StringValue
@@ -385,6 +444,11 @@ main(int argc, char* argv[])
     // Config::SetDefault ("ns3::ConfigStore::Mode", StringValue ("Save"));
     // ConfigStore outputConfig2;
     // outputConfig2.ConfigureAttributes (); 
+
+
+
+
+
     Simulator::Run();
 
     Simulator::Destroy();

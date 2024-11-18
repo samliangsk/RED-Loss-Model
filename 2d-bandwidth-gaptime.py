@@ -8,11 +8,12 @@ from collections import Counter
 
 def process_files():
     # Get list of all drp.tr files
-    file_list = glob.glob('CD-bw*p*-drp.tr')
-
+    file_list = glob.glob('FQCD-bw*Mb-dlay*-drp.tr')
+    
     data = {}
 
     for file_path in file_list:
+        
         # Extract bandwidth from filename
         match = re.search(r'bw([\dp]+)Mb', file_path)
         if match:
@@ -58,8 +59,10 @@ def process_files():
             timestamp = row['timestamp']
             seq = row['seq']
             delta_time = row['delta_time']
-            if delta_time > 1.0:
-                # Start a new batch
+            if delta_time > 0.34:
+                # Start a new batch, save the old batch if there's things 
+                # the decider is currently static, how can we have a dynamic decider for batches?
+                # or use a more accurate value?
                 if current_batch['drops']:
                     batches.append(current_batch)
                 current_batch = {'drops': [seq], 'times': [timestamp]}
@@ -70,109 +73,96 @@ def process_files():
         if current_batch['drops']:
             batches.append(current_batch)
 
-        # Determine the most common batch size
-        batch_sizes = [len(batch['drops']) for batch in batches]
-        if not batch_sizes:
-            continue  # No batches to process
-        batch_size_counts = Counter(batch_sizes)
-        expected_batch_size = batch_size_counts.most_common(1)[0][0]
-
-        # Prune batches that don't match the expected batch size
-        pruned_batches = [batch for batch in batches if len(batch['drops']) == expected_batch_size]
-
-        # If after pruning there are no batches, skip this file
-        if not pruned_batches:
+        # If there are no batches, skip this file
+        if not batches:
             continue
 
-        # For each pruned batch, collect time differences
-        time_diffs_1 = []  # Time since last batch (for first drop in batch)
-        time_diffs_within_batch = []  # Time differences within batch
+        # For each batch, collect time differences and number of drops
+        time_diffs_between_batches = []  # Time difference between the start of consecutive batches
+        drops_per_batch = []  # Number of drops in each batch
 
-        last_drop_time = None
-        for batch in pruned_batches:
+        last_batch_start_time = None
+        for idx, batch in enumerate(batches):
             times = batch['times']
             if not times:
                 continue
-            first_drop_time = times[0]
-            # Time since last batch
-            if last_drop_time is not None:
-                time_since_last_batch = first_drop_time - last_drop_time
-                time_diffs_1.append(time_since_last_batch)
+            batch_start_time = times[0]
+            # Number of drops in this batch
+            drops_per_batch.append(len(batch['drops']))
+
+            # checker: per batch drop count
+            # if(delay == 4):
+                # print("drops_per_batch for ",idx, " is " ,len(batch['drops']))
+            
+            # Time difference between batches
+            if last_batch_start_time is not None:
+                time_between_batches = batch_start_time - last_batch_start_time
+                time_diffs_between_batches.append(time_between_batches)
             else:
-                # For first batch, we don't have last_drop_time
-                pass
-            last_drop_time = times[-1]  # Update last_drop_time
+                # For first batch, set time difference to zero but do not include it in average
+                time_diffs_between_batches.append(0.0)
+            last_batch_start_time = batch_start_time  # Update last_batch_start_time
+        # Exclude the first time difference (which is zero) from average calculation
+        if len(time_diffs_between_batches) > 1:
+            avg_time_diff = np.mean(time_diffs_between_batches[1:])
+        else:
+            avg_time_diff = np.nan  # Not enough data to compute average
 
-            # Time differences within batch
-            within_batch_diffs = []
-            for i in range(1, len(times)):
-                within_batch_diffs.append(times[i] - times[i - 1])
-            time_diffs_within_batch.append(within_batch_diffs)
-
-        # Compute average time differences within batches
-        # Transpose the list of lists to get lists of time differences at each position
-        time_diffs_within_batch_transposed = list(zip(*time_diffs_within_batch))
-        avg_within_batch_diffs = [np.mean(diffs) for diffs in time_diffs_within_batch_transposed]
-
-        # Store the collected time differences in the data dictionary
+        # Compute average number of drops per batch
+        avg_drops_per_batch = np.mean(drops_per_batch) if drops_per_batch else np.nan
+        # print("Average drop per batch is " , avg_drops_per_batch, "for delay ", delay)
+        # Store the collected time differences and drops in the data dictionary
+        
         data[bandwidth] = {
-            'time_diffs_1': time_diffs_1,
-            'avg_within_batch_diffs': avg_within_batch_diffs,
-            'expected_batch_size': expected_batch_size
+            'avg_time_diff_between_batches': avg_time_diff,
+            'avg_drops_per_batch': avg_drops_per_batch
         }
-
+        
+            
     return data
 
 def plot_data(data):
     # Prepare data for plotting
     bandwidths = sorted(data.keys())
-    avg_time_diffs_1 = []
-    avg_within_batch_diffs = []
-    batch_sizes = []
+    avg_time_diffs_between_batches = []
+    avg_drops_per_batch_list = []
 
     for bw in bandwidths:
-        time_diffs_1 = data[bw]['time_diffs_1']
-        within_batch_diffs = data[bw]['avg_within_batch_diffs']
-        expected_batch_size = data[bw]['expected_batch_size']
+        avg_time_diff = data[bw]['avg_time_diff_between_batches']
+        avg_drops_per_batch = data[bw]['avg_drops_per_batch']
 
-        # Compute average, if the list is empty, set average to NaN
-        avg_1 = np.mean(time_diffs_1) if time_diffs_1 else np.nan
-        avg_time_diffs_1.append(avg_1)
-        batch_sizes.append(expected_batch_size)
+        avg_time_diffs_between_batches.append(avg_time_diff)
+        avg_drops_per_batch_list.append(avg_drops_per_batch)
 
-        # For within-batch diffs, fill with NaNs if not enough data
-        while len(within_batch_diffs) < expected_batch_size - 1:
-            within_batch_diffs.append(np.nan)
-        avg_within_batch_diffs.append(within_batch_diffs[:expected_batch_size - 1])
 
-    # Number of bandwidths
-    N = len(bandwidths)
-    ind = np.arange(N)  # the x locations for the groups
-    width = 0.2  # the width of the bars
 
-    fig, ax = plt.subplots(figsize=(14, 7))
+        # Plotting
+    fig, ax1 = plt.subplots(figsize=(14, 7))
 
-    # Extract within-batch diffs
-    avg_time_diffs_list = [list(diffs) for diffs in avg_within_batch_diffs]
-    max_diffs = max(len(diffs) for diffs in avg_time_diffs_list)
+    ind = np.arange(len(bandwidths))
+    width = 0.35
 
-    # Stack the bars for each time difference
-    bar_positions = [ind + i * width - width for i in range(max_diffs + 1)]
-    labels = ['Time since last batch'] + [f'Within-batch time diff {i+1}' for i in range(max_diffs)]
+    # Plot average time differences between batches
+    ax1.bar(ind - width/2, avg_time_diffs_between_batches, width, label='Avg Time Between Batches', color='blue')
+    ax1.set_ylabel('Average Time Between Batches (s)', color='blue')
+    ax1.tick_params(axis='y', labelcolor='blue')
+    ax1.set_xlabel('Round Trip Time (s)')
+    ax1.set_xticks(ind)
+    ax1.set_xticklabels([str(bw) for bw in bandwidths], rotation=45)
 
-    rects = []
-    rects.append(ax.bar(bar_positions[0], avg_time_diffs_1, width, label=labels[0]))
-    for i in range(max_diffs):
-        avg_diffs_i = [diffs[i] if i < len(diffs) else np.nan for diffs in avg_time_diffs_list]
-        rects.append(ax.bar(bar_positions[i + 1], avg_diffs_i, width, label=labels[i + 1]))
+    # Create a second y-axis for average drops per batch
+    ax2 = ax1.twinx()
+    ax2.bar(ind + width/2, avg_drops_per_batch_list, width, label='Avg Drops per Batch', color='red')
+    ax2.set_ylabel('Average Drops per Batch', color='red')
+    ax2.tick_params(axis='y', labelcolor='red')
 
-    # Add some text for labels, title and custom x-axis tick labels, etc.
-    ax.set_ylabel('Time differences (s)')
-    ax.set_xlabel('Bandwidth (Mbps)')
-    ax.set_title('Time Differences between Drops for Different Bandwidths')
-    ax.set_xticks(ind)
-    ax.set_xticklabels([str(bw) for bw in bandwidths], rotation=45)
-    ax.legend()
+    # Add title and legend
+    fig.suptitle('Average Time Between Batches and Average Drops per Batch for Different RTTs')
+
+    # Combine legends from both axes
+    handles1, labels1 = ax1.get_legend_handles_labels()
+    handles2, labels2 = ax2.get_legend_handles_labels()
+    ax1.legend(handles1 + handles2, labels1 + labels2, loc='upper right')
 
     plt.tight_layout()
     plt.show()

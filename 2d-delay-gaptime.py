@@ -39,10 +39,10 @@ def process_files():
             print(f"Error reading {file_path}: {e}")
             continue
 
-        # Ignore drops before 5 seconds
-        df = df[df['timestamp'] >= 5].reset_index(drop=True)
+        # Ignore drops before 20 seconds
+        df = df[df['timestamp'] >= 20].reset_index(drop=True)
 
-        # If no drops after 5 seconds, skip
+        # If no drops after 20 seconds, skip
         if df.empty:
             continue
 

@@ -96,6 +96,7 @@ def process_interval(drp_file, dest_port, start_time, end_time):
 
 def plot_time_gap_distribution(time_gaps, title):
     print(time_gaps)
+    print()
     plt.figure(figsize=(10, 6))
     plt.hist(time_gaps, bins=20, edgecolor='black', alpha=0.7)
     mean_gap = np.mean(time_gaps)

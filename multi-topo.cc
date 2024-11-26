@@ -178,7 +178,7 @@ main(int argc, char* argv[])
     std::string tcpTypeId = "ns3::TcpLinuxReno";
     
     std::string queueDiscType = "CoDel";       // PfifoFast(Droptail) or CoDel or RED
-    uint32_t queueDiscSize = 450;               // in packets
+    uint32_t queueDiscSize = 4500;               // in packets
     uint32_t queueSize = 10;                   // in packets
     uint32_t pktSize = 1440;                   // in bytes. 1440 to prevent fragments
     float startTime = 0.1F;

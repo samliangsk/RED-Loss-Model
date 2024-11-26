@@ -16,11 +16,14 @@ def process_files():
         # Extract bandwidth and delay from filename
         bw_match = re.search(r'bw([\dp]+)Mb', file_path)
         delay_match = re.search(r'dlay([\d]+)', file_path)
+        
         if bw_match and delay_match:
             bw_str = bw_match.group(1).replace('p', '.')
             delay_str = delay_match.group(1).replace('p', '.')
             bandwidth = float(bw_str)
             delay = float(delay_str)
+            print(bandwidth, delay, file_path)
+            print()
         else:
             continue
 
